@@ -1,66 +1,56 @@
 # Dockerfile for SigmaChain Frontend
-# Multi-stage build for Next.js
+# Multi-stage build for Vite + React
 
 # Stage 1: Dependencies
-FROM node:20-slim AS deps
+FROM node:20-slim AS frontend_deps
+
 WORKDIR /app
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-# Copy package files
-COPY package.json package-lock.json* ./
+# Copy the manifest file
+COPY package.json .
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Stage 2: Builder
 FROM node:20-slim AS builder
 WORKDIR /app
 
 # Accept build arguments
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG VITE_API_URL=http://localhost:8000
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+# Copy dependencies from the deps stage
+COPY --from=frontend_deps /app/node_modules ./node_modules
 COPY . .
 
 # Set environment variables for build
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV VITE_API_URL=${VITE_API_URL}
 
-# Build Next.js application
+# Build Vite application
 RUN npm run build
 
-# Stage 3: Runner
-FROM node:20-slim AS runner
-WORKDIR /app
+# Stage 3: Runner (using nginx for static files)
+FROM nginx:alpine AS runner
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# Copy built files from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Copy nginx configuration
+RUN echo 'server { \
+    listen 3000; \
+    server_name _; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
-# Create non-root user
-RUN groupadd --system --gid 1001 nodejs
-RUN useradd --system --uid 1001 nextjs
-
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
+# Expose port
 EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:3000 || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:3000 || exit 1
 
-CMD ["node", "server.js"]
-
+CMD ["nginx", "-g", "daemon off;"]

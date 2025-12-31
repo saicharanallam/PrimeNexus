@@ -1,4 +1,39 @@
 services:
+  database:
+    image: postgres:15-alpine
+    container_name: sigmachain-db
+    environment:
+      - POSTGRES_DB=sigmachain
+      - POSTGRES_USER=sigmachain
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sigmachain_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sigmachain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sigmachain-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # Uncomment below if you have NVIDIA GPU and want GPU acceleration
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
   backend:
     build:
       context: ./backend
@@ -7,14 +42,27 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # OpenAI is optional - if not set, will use Ollama
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Ollama configuration
+      - OLLAMA_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2}
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-llava}
       - CORS_ORIGINS=http://localhost:3000
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql+asyncpg://sigmachain:${POSTGRES_PASSWORD:-sigmachain_dev}@database:5432/sigmachain
     volumes:
       # Persist generated images
       - ./backend/generated_images:/app/generated_images
       # Persist Hugging Face model cache (optional, speeds up subsequent runs)
       - huggingface_cache:/root/.cache/huggingface
+      # Mount workflow templates
+      - ./backend/workflow_templates:/app/workflow_templates
+    depends_on:
+      database:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -56,6 +104,10 @@ services:
 
 volumes:
   huggingface_cache:
+    driver: local
+  postgres_data:
+    driver: local
+  ollama_data:
     driver: local
 
 networks:

@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme Variables - Light Mode (Default) */
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+  --sidebar-bg: rgba(2, 6, 23, 0.8);
+  --sidebar-border: rgb(30, 41, 59);
+  --text-primary: rgb(248, 250, 252);
+  --text-secondary: rgb(148, 163, 184);
+  --nav-hover: rgba(30, 41, 59, 0.6);
+  --nav-active-gradient: linear-gradient(to right, rgba(99, 102, 241, 0.8), rgba(14, 165, 233, 0.7), rgba(16, 185, 129, 0.6));
+}
+
+/* Theme Variables - Dark Mode */
+[data-theme="dark"],
+.dark {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+  --sidebar-bg: rgba(2, 6, 23, 0.8);
+  --sidebar-border: rgb(30, 41, 59);
+  --text-primary: rgb(248, 250, 252);
+  --text-secondary: rgb(148, 163, 184);
+  --nav-hover: rgba(30, 41, 59, 0.6);
+  --nav-active-gradient: linear-gradient(to right, rgba(99, 102, 241, 0.8), rgba(14, 165, 233, 0.7), rgba(16, 185, 129, 0.6));
+}
+
+/* Theme Variables - Light Mode */
+[data-theme="light"],
+.light {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 255, 255, 255;
+  --sidebar-bg: rgba(248, 250, 252, 0.95);
+  --sidebar-border: rgb(226, 232, 240);
+  --text-primary: rgb(15, 23, 42);
+  --text-secondary: rgb(100, 116, 139);
+  --nav-hover: rgba(241, 245, 249, 0.8);
+  --nav-active-gradient: linear-gradient(to right, rgba(99, 102, 241, 0.9), rgba(14, 165, 233, 0.8), rgba(16, 185, 129, 0.7));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Responsive sidebar handling */
+@media (max-width: 1024px) {
+  /* On smaller screens, reduce padding to prevent overlap */
+  main {
+    padding-left: 4rem !important;
+    padding-right: 4rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  /* On medium screens, reduce right padding */
+  main {
+    padding-left: 4rem !important;
+    padding-right: 1rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  /* On very small screens, sidebars overlay completely */
+  main {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+

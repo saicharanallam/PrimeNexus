@@ -1,0 +1,134 @@
+import { useState, useRef, useEffect } from 'react'
+import {
+  ChatBubbleLeftRightIcon,
+  Cog6ToothIcon,
+} from '@heroicons/react/24/outline'
+
+// Minimal JSX typing so this component works even if React type
+// declarations are not picked up by the TypeScript server.
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any
+    }
+  }
+}
+
+type MenuKey = 'chat' | 'settings'
+
+interface SidebarProps {
+  activeMenu: MenuKey
+  onSelect: (menu: MenuKey) => void
+}
+
+const menuItems: {
+  key: MenuKey
+  label: string
+  description: string
+  icon: (props: { className?: string }) => any
+}[] = [
+  {
+    key: 'chat',
+    label: 'Chat Bot',
+    description: 'Talk to LLM',
+    icon: ChatBubbleLeftRightIcon,
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    description: 'App settings',
+    icon: Cog6ToothIcon,
+  },
+]
+
+export default function Sidebar({ activeMenu, onSelect }: SidebarProps) {
+  const [collapsed, setCollapsed] = useState(false)
+  const collapseTimeoutRef = useRef<number | null>(null)
+
+  const handleMouseEnter = () => {
+    if (collapseTimeoutRef.current) {
+      clearTimeout(collapseTimeoutRef.current)
+      collapseTimeoutRef.current = null
+    }
+    setCollapsed(false)
+  }
+
+  const handleMouseLeave = () => {
+    // Delay collapse by 500ms to prevent premature closing
+    collapseTimeoutRef.current = window.setTimeout(() => {
+      setCollapsed(true)
+    }, 500)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (collapseTimeoutRef.current) {
+        clearTimeout(collapseTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  return (
+    <aside
+      className={`group fixed left-0 top-0 h-full z-20 flex flex-col border-r border-slate-800 bg-slate-950/80 backdrop-blur-xl transition-all duration-500 ${
+        collapsed ? 'w-16' : 'w-64'
+      }`}
+      style={{ minWidth: collapsed ? '4rem' : '16rem' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Logo */}
+      <div className="flex h-16 items-center justify-center px-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-500 via-sky-500 to-emerald-400 shadow-lg shadow-sky-500/40">
+          <span className="text-lg font-bold tracking-tight">Σ</span>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="mx-3 mb-2 border-t border-slate-800/80" />
+
+      {/* Nav Items */}
+      <nav className="flex-1 space-y-1 px-2 py-2">
+        {menuItems.map((item) => {
+          const Icon = item.icon
+          const isActive = activeMenu === item.key
+
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => onSelect(item.key)}
+              className={`group/item relative flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition-all duration-150 ${
+                isActive
+                  ? 'bg-gradient-to-r from-indigo-500/80 via-sky-500/70 to-emerald-500/60 text-slate-50 shadow-md shadow-sky-500/30'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
+              }`}
+            >
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-lg border ${
+                  isActive
+                    ? 'border-white/0 bg-slate-950/30'
+                    : 'border-slate-700/80 bg-slate-900/60'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+              </div>
+
+              {/* Label / Description */}
+              {!collapsed && (
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">
+                    {item.label}
+                  </span>
+                  <span className="truncate text-xs text-slate-400">
+                    {item.description}
+                  </span>
+                </div>
+              )}
+            </button>
+          )
+        })}
+      </nav>
+    </aside>
+  )
+}
