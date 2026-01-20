@@ -19,6 +19,15 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username = Column(String(255), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=True, index=True)
+    
+    # Additional user fields
+    display_name = Column(String(255), nullable=True)  # Friendly display name
+    bio = Column(Text, nullable=True)  # User bio/description
+    avatar_url = Column(String(500), nullable=True)  # Profile picture URL
+    phone = Column(String(50), nullable=True)  # Phone number
+    timezone = Column(String(100), nullable=True, default="UTC")  # User timezone
+    preferences = Column(JSON, nullable=True)  # User preferences (theme, notifications, etc.)
+    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

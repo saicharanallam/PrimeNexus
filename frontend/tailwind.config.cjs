@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class', // Enable class-based dark mode
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
@@ -20,6 +21,9 @@ module.exports = {
           800: '#075985',
           900: '#0c4a6e',
         },
+      },
+      transitionProperty: {
+        'colors': 'background-color, border-color, color, fill, stroke',
       },
     },
   },

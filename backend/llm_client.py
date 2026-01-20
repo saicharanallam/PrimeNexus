@@ -4,6 +4,7 @@ Ollama LLM client with streaming support
 
 import os
 import httpx
+import multiprocessing
 from typing import AsyncIterator, Optional, List, Dict, Any
 
 
@@ -38,6 +39,11 @@ class OllamaClient:
         """
         model = model or self.default_model
         
+        # Performance optimizations
+        num_thread = int(os.getenv("OLLAMA_NUM_THREAD", multiprocessing.cpu_count()))
+        num_ctx = int(os.getenv("OLLAMA_NUM_CTX", 2048))  # Context window (reduce for faster responses)
+        num_gpu = int(os.getenv("OLLAMA_NUM_GPU", 0))  # GPU layers (0 = CPU only)
+        
         async with httpx.AsyncClient(timeout=300.0) as client:
             try:
                 # Use /api/chat endpoint for proper message handling
@@ -50,6 +56,9 @@ class OllamaClient:
                         "stream": True,
                         "options": {
                             "temperature": temperature,
+                            "num_thread": num_thread,  # CPU threads for inference
+                            "num_ctx": num_ctx,  # Context window size
+                            "num_gpu": num_gpu,  # GPU layers (0 = CPU, -1 = all layers on GPU)
                             **({"num_predict": max_tokens} if max_tokens else {})
                         }
                     }
@@ -108,6 +117,11 @@ class OllamaClient:
         """
         model = model or self.default_model
         
+        # Performance optimizations
+        num_thread = int(os.getenv("OLLAMA_NUM_THREAD", multiprocessing.cpu_count()))
+        num_ctx = int(os.getenv("OLLAMA_NUM_CTX", 2048))
+        num_gpu = int(os.getenv("OLLAMA_NUM_GPU", 0))
+        
         async with httpx.AsyncClient(timeout=300.0) as client:
             try:
                 response = await client.post(
@@ -118,6 +132,9 @@ class OllamaClient:
                         "stream": False,
                         "options": {
                             "temperature": temperature,
+                            "num_thread": num_thread,
+                            "num_ctx": num_ctx,
+                            "num_gpu": num_gpu,
                             **({"num_predict": max_tokens} if max_tokens else {})
                         }
                     }

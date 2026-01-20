@@ -1,14 +1,5 @@
-import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent, MouseEvent } from 'react'
+import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent, MouseEvent, useCallback } from 'react'
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline'
-
-// Minimal JSX typing
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      [elemName: string]: any
-    }
-  }
-}
 
 interface Message {
   id: string
@@ -23,37 +14,39 @@ interface ChatInterfaceProps {
   userId: string
   apiUrl?: string
   onThreadCreated?: (threadId: string) => void
+  onMessageSent?: () => void
 }
 
-export default function ChatInterface({ threadId, userId, apiUrl = 'http://localhost:8000', onThreadCreated }: ChatInterfaceProps) {
+export default function ChatInterface({ threadId, userId, apiUrl = 'http://localhost:8000', onThreadCreated, onMessageSent }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const threadJustCreatedRef = useRef<string | null>(null)
+
+  // Auto-resize textarea
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`
+    }
+  }, [])
+
+  // Adjust textarea height when input changes
+  useEffect(() => {
+    adjustTextareaHeight()
+  }, [inputValue, adjustTextareaHeight])
 
   // Load messages when thread changes
-  useEffect(() => {
-    if (threadId) {
-      loadMessages()
-    } else {
-      setMessages([])
-    }
-  }, [threadId])
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const loadMessages = async () => {
-    if (!threadId) return
+  const loadMessages = useCallback(async () => {
+    if (!threadId || !userId) return
 
     try {
+      setError(null)
       const response = await fetch(`${apiUrl}/api/chat/threads/${threadId}?user_id=${userId}`)
       if (!response.ok) throw new Error('Failed to load messages')
       
@@ -67,7 +60,36 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
       setMessages(loadedMessages)
     } catch (error) {
       console.error('Error loading messages:', error)
+      setError('Failed to load messages. Please try again.')
     }
+  }, [threadId, userId, apiUrl])
+
+  useEffect(() => {
+    if (threadId) {
+      // Only load messages if this thread wasn't just created
+      // This prevents overwriting local messages before they're saved to DB
+      if (threadJustCreatedRef.current !== threadId) {
+        loadMessages()
+      } else {
+        // Clear the flag after a short delay to allow for future loads
+        setTimeout(() => {
+          threadJustCreatedRef.current = null
+        }, 1000)
+      }
+    } else {
+      setMessages([])
+      setError(null)
+      threadJustCreatedRef.current = null
+    }
+  }, [threadId, loadMessages])
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   const createThread = async (): Promise<string | null> => {
@@ -87,59 +109,58 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
       })
 
       if (response.ok) {
+        // Mark this thread as just created to prevent loading messages immediately
+        threadJustCreatedRef.current = newThreadId
         if (onThreadCreated) {
           onThreadCreated(newThreadId)
         }
         return newThreadId
       } else {
-        console.error('Failed to create chat thread')
-        return null
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || 'Failed to create chat thread')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating chat thread:', error)
+      setError(error.message || 'Failed to create chat thread')
       return null
     }
   }
 
   const handleSend = async () => {
-    if (!inputValue.trim() || isLoading) {
-      console.log('Cannot send:', { hasInput: !!inputValue.trim(), isLoading, inputValue })
-      return
-    }
+    if (!inputValue.trim() || isLoading) return
 
     if (!userId) {
-      console.error('No userId provided')
-      alert('User not initialized. Please refresh the page.')
+      setError('User not initialized. Please refresh the page.')
       return
     }
-
-    console.log('Sending message:', { threadId, userId, content: inputValue.substring(0, 50) })
 
     // Auto-create thread if none exists
     let currentThreadId = threadId
     if (!currentThreadId) {
-      console.log('No threadId, creating new thread...')
       currentThreadId = await createThread()
       if (!currentThreadId) {
-        // Failed to create thread, show error
-        const errorMsg = 'Failed to create chat thread. Please check the console and try again.'
-        console.error('Thread creation failed')
-        alert(errorMsg)
         return
       }
-      console.log('Thread created:', currentThreadId)
+      // Mark thread as just created to prevent loading messages
+      threadJustCreatedRef.current = currentThreadId
     }
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: inputValue,
+      content: inputValue.trim(),
       timestamp: new Date(),
     }
 
     setMessages((prev: Message[]) => [...prev, userMessage])
     setInputValue('')
+    setError(null)
     setIsLoading(true)
+
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '60px'
+    }
 
     // Create streaming message placeholder
     const streamingMessageId = `assistant-${Date.now()}`
@@ -157,7 +178,6 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
 
     try {
       const streamUrl = `${apiUrl}/api/chat/threads/${currentThreadId}/stream?user_id=${userId}`
-      console.log('Fetching stream from:', streamUrl)
       
       const response = await fetch(streamUrl, {
         method: 'POST',
@@ -167,13 +187,10 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
         body: JSON.stringify({ content: userMessage.content }),
         signal: abortControllerRef.current.signal,
       })
-
-      console.log('Stream response status:', response.status, response.statusText)
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Stream error response:', errorText)
-        throw new Error(`Failed to stream response: ${response.status} ${response.statusText}`)
+        throw new Error(`Failed to stream response: ${response.status} ${response.statusText}. ${errorText}`)
       }
 
       const reader = response.body?.getReader()
@@ -191,7 +208,7 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
         const lines = chunk.split('\n')
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.trim() && line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6))
               if (data.content) {
@@ -214,6 +231,13 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
                       : msg
                   )
                 )
+                // Clear the threadJustCreated flag after streaming completes
+                // This allows messages to be reloaded from DB if needed
+                threadJustCreatedRef.current = null
+                // Notify parent that message was sent (to reload thread list)
+                if (onMessageSent) {
+                  onMessageSent()
+                }
               }
               if (data.error) {
                 throw new Error(data.error)
@@ -226,14 +250,16 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log('Request aborted')
+        // Request was aborted, remove streaming message
+        setMessages((prev: Message[]) => prev.filter(msg => msg.id !== streamingMessageId))
       } else {
         console.error('Error streaming response:', error)
+        setError(error.message || 'Failed to get response')
         // Update message with error
         setMessages((prev: Message[]) =>
           prev.map((msg: Message) =>
             msg.id === streamingMessageId
-              ? { ...msg, content: `Error: ${error.message}`, streaming: false }
+              ? { ...msg, content: `Error: ${error.message || 'Failed to get response'}`, streaming: false }
               : msg
           )
         )
@@ -251,17 +277,34 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
     }
   }
 
+  const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value)
+    adjustTextareaHeight()
+  }
+
   return (
-    <div className="flex flex-col h-full bg-slate-950">
+    <div className="flex flex-col h-full bg-gradient-to-br from-white via-slate-50/50 to-white dark:from-slate-950 dark:via-slate-900/50 dark:to-slate-950 overflow-hidden transition-all duration-300">
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4 min-h-0">
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
+            {error}
+            <button
+              onClick={() => setError(null)}
+              className="ml-2 underline hover:no-underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <h3 className="text-xl font-semibold text-slate-300 mb-2">
+              <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2 transition-colors">
                 Start a conversation
               </h3>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-600 dark:text-slate-500 transition-colors">
                 Send a message to begin chatting with the LLM
               </p>
             </div>
@@ -273,20 +316,20 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-3xl rounded-lg px-4 py-2 ${
+                className={`max-w-3xl rounded-lg px-4 py-3 shadow-sm transition-colors ${
                   message.role === 'user'
-                    ? 'bg-gradient-to-r from-indigo-500/80 to-sky-500/70 text-white'
-                    : 'bg-slate-800/60 text-slate-100'
+                    ? 'bg-gradient-to-r from-indigo-500/90 to-sky-500/80 text-white'
+                    : 'bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700/50'
                 }`}
               >
-                <div className="text-sm whitespace-pre-wrap break-words">
-                  {message.content}
+                <div className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                  {message.content || (message.streaming ? 'Thinking...' : '')}
                   {message.streaming && (
                     <span className="inline-block w-2 h-4 ml-1 bg-slate-400 animate-pulse" />
                   )}
                 </div>
-                <div className="text-xs mt-1 opacity-70">
-                  {message.timestamp.toLocaleTimeString()}
+                <div className="text-xs mt-2 opacity-70">
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
             </div>
@@ -296,36 +339,26 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-slate-800 px-4 py-4">
-        <div className="flex items-end gap-2">
+      <div className="border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm px-4 py-4 flex-shrink-0 transition-colors">
+        <div className="flex items-end gap-2 max-w-5xl mx-auto">
           <textarea
+            ref={textareaRef}
             value={inputValue}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => {
-              setInputValue(e.target.value)
-              console.log('Input changed:', e.target.value)
-            }}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={threadId ? "Type your message..." : "Type your message to start a new chat..."}
             disabled={isLoading}
-            className="flex-1 min-h-[60px] max-h-[200px] px-4 py-3 bg-slate-900/60 border-2 border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 transition-colors resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 min-h-[60px] max-h-[200px] px-4 py-3 bg-slate-50 dark:bg-slate-900/80 border-2 border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 transition-all resize-none disabled:opacity-50 disabled:cursor-not-allowed"
             rows={1}
           />
           <button
             onClick={(e: MouseEvent<HTMLButtonElement>) => {
               e.preventDefault()
               e.stopPropagation()
-              console.log('Send button clicked', { 
-                inputValue: inputValue.substring(0, 20), 
-                inputLength: inputValue.length,
-                hasTrimmedInput: !!inputValue.trim(),
-                isLoading, 
-                userId, 
-                threadId 
-              })
               handleSend()
             }}
             disabled={!inputValue.trim() || isLoading}
-            className="flex items-center justify-center h-[60px] w-[60px] rounded-lg bg-gradient-to-r from-indigo-500 to-sky-500 text-white hover:from-indigo-600 hover:to-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+            className="flex items-center justify-center h-[60px] w-[60px] rounded-lg bg-gradient-to-r from-indigo-500 to-sky-500 text-white hover:from-indigo-600 hover:to-sky-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-indigo-500/30"
             type="button"
             title={!inputValue.trim() ? 'Type a message to send' : isLoading ? 'Sending...' : 'Send message'}
           >
@@ -343,4 +376,3 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
     </div>
   )
 }
-

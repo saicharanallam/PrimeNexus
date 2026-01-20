@@ -25,9 +25,21 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+    # Resource limits for better performance
+    deploy:
+      resources:
+        limits:
+          cpus: '4'  # Adjust based on your CPU cores (recommend 4-8 for 7B models)
+          memory: 8G  # Adjust based on available RAM (recommend 8-16GB for 7B models)
+        reservations:
+          cpus: '2'  # Minimum CPU allocation
+          memory: 4G  # Minimum memory allocation
     # Uncomment below if you have NVIDIA GPU and want GPU acceleration
     # deploy:
     #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 8G
     #     reservations:
     #       devices:
     #         - driver: nvidia
@@ -48,6 +60,10 @@ services:
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama2}
       - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-llava}
+      # Ollama performance settings (adjust based on your hardware)
+      - OLLAMA_NUM_THREAD=${OLLAMA_NUM_THREAD:-4}  # CPU threads (default: 4, increase for more cores)
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-2048}  # Context window (reduce for faster, increase for longer context)
+      - OLLAMA_NUM_GPU=${OLLAMA_NUM_GPU:-0}  # GPU layers (0 = CPU, -1 = all on GPU if available)
       - CORS_ORIGINS=http://localhost:3000
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql+asyncpg://sigmachain:${POSTGRES_PASSWORD:-sigmachain_dev}@database:5432/sigmachain
@@ -84,13 +100,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        - VITE_API_URL=http://localhost:8000
     container_name: sigmachain-frontend
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       backend:
         condition: service_healthy
@@ -101,6 +117,33 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Development frontend with hot reload
+  # Use this instead of 'frontend' for development
+  # Run: docker compose --profile dev up frontend-dev
+  frontend-dev:
+    profiles:
+      - dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: sigmachain-frontend-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      # Mount entire frontend directory for hot reload
+      - ./frontend:/app
+      # Exclude node_modules (use container's installed version)
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
 
 volumes:
   huggingface_cache:

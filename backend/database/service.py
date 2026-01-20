@@ -60,6 +60,66 @@ class UserService:
         result = await session.execute(query)
         return result.scalar_one_or_none()
 
+    @staticmethod
+    async def update_user(
+        session: AsyncSession,
+        user_id: UUID,
+        username: Optional[str] = None,
+        email: Optional[str] = None,
+        display_name: Optional[str] = None,
+        bio: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+        phone: Optional[str] = None,
+        timezone: Optional[str] = None,
+        preferences: Optional[Dict[str, Any]] = None,
+    ) -> Optional[User]:
+        """Update user information"""
+        user = await UserService.get_user(session, user_id)
+        if not user:
+            return None
+        
+        # Update fields if provided
+        if username is not None:
+            # Check if new username is already taken by another user
+            existing = await UserService.get_user_by_username(session, username)
+            if existing and existing.id != user_id:
+                raise ValueError(f"Username '{username}' already exists")
+            user.username = username
+        
+        if email is not None:
+            # Check if new email is already taken by another user
+            if email:  # Only check if email is not empty
+                existing = await UserService.get_user_by_email(session, email)
+                if existing and existing.id != user_id:
+                    raise ValueError(f"Email '{email}' already exists")
+            user.email = email
+        
+        if display_name is not None:
+            user.display_name = display_name
+        
+        if bio is not None:
+            user.bio = bio
+        
+        if avatar_url is not None:
+            user.avatar_url = avatar_url
+        
+        if phone is not None:
+            user.phone = phone
+        
+        if timezone is not None:
+            user.timezone = timezone
+        
+        if preferences is not None:
+            # Merge preferences if existing ones exist
+            if user.preferences:
+                user.preferences = {**user.preferences, **preferences}
+            else:
+                user.preferences = preferences
+        
+        user.updated_at = datetime.utcnow()
+        await session.flush()
+        return user
+
 
 class ChatService:
     """Service for chat operations"""
