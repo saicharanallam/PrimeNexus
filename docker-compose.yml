@@ -46,11 +46,11 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
-  backend:
+  core-api:
     build:
-      context: ./backend
+      context: ./services/core-api
       dockerfile: Dockerfile
-    container_name: sigmachain-backend
+    container_name: sigmachain-core-api
     ports:
       - "8000:8000"
     environment:
@@ -69,11 +69,11 @@ services:
       - DATABASE_URL=postgresql+asyncpg://sigmachain:${POSTGRES_PASSWORD:-sigmachain_dev}@database:5432/sigmachain
     volumes:
       # Persist generated images
-      - ./backend/generated_images:/app/generated_images
+      - ./services/core-api/generated_images:/app/generated_images
       # Persist Hugging Face model cache (optional, speeds up subsequent runs)
       - huggingface_cache:/root/.cache/huggingface
       # Mount workflow templates
-      - ./backend/workflow_templates:/app/workflow_templates
+      - ./services/core-api/workflow_templates:/app/workflow_templates
     depends_on:
       database:
         condition: service_healthy
@@ -101,14 +101,16 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=http://localhost:8000
+        - VITE_RUST_SERVICE_URL=http://localhost:8001
     container_name: sigmachain-frontend
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
       - VITE_API_URL=http://localhost:8000
+      - VITE_RUST_SERVICE_URL=http://localhost:8001
     depends_on:
-      backend:
+      core-api:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -139,11 +141,47 @@ services:
       # Exclude node_modules (use container's installed version)
       - /app/node_modules
     depends_on:
-      backend:
+      core-api:
         condition: service_healthy
     restart: unless-stopped
     stdin_open: true
     tty: true
+
+  # Rust service for high-performance computations (Mandelbrot Set)
+  rust-service:
+    build:
+      context: ./services/rust-service
+      dockerfile: Dockerfile
+    container_name: sigmachain-rust-service
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Separate migration service (run migrations independently)
+  # Usage: docker compose run --rm migrations upgrade
+  migrations:
+    profiles:
+      - migrations
+    build:
+      context: ./services/core-api
+      dockerfile: Dockerfile
+    container_name: sigmachain-migrations
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://sigmachain:${POSTGRES_PASSWORD:-sigmachain_dev}@database:5432/sigmachain
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./services/core-api:/app
+    depends_on:
+      database:
+        condition: service_healthy
+    command: ["python", "scripts/run_migrations.py", "upgrade"]
+    restart: "no"
 
 volumes:
   huggingface_cache:

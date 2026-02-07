@@ -14,7 +14,7 @@ export interface ChatThread {
   messageCount: number
 }
 
-type MenuKey = 'chat' | 'settings' | 'database'
+type MenuKey = 'chat' | 'settings' | 'database' | 'fractal'
 
 interface RightSidebarProps {
   activeMenu: MenuKey

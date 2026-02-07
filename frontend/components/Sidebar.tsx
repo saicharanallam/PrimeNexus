@@ -3,9 +3,10 @@ import {
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
   TableCellsIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline'
 
-type MenuKey = 'chat' | 'settings' | 'database'
+type MenuKey = 'chat' | 'settings' | 'database' | 'fractal'
 
 interface SidebarProps {
   activeMenu: MenuKey
@@ -35,6 +36,12 @@ const menuItems: {
     label: 'Settings',
     description: 'App settings',
     icon: Cog6ToothIcon,
+  },
+  {
+    key: 'fractal',
+    label: 'Fractal Explorer',
+    description: 'Mandelbrot Set',
+    icon: SparklesIcon,
   },
 ]
 

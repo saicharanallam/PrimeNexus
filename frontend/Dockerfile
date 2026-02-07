@@ -18,6 +18,7 @@ WORKDIR /app
 
 # Accept build arguments
 ARG VITE_API_URL=http://localhost:8000
+ARG VITE_RUST_SERVICE_URL=http://localhost:8001
 
 # Copy dependencies from the deps stage
 COPY --from=frontend_deps /app/node_modules ./node_modules
@@ -25,6 +26,7 @@ COPY . .
 
 # Set environment variables for build
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_RUST_SERVICE_URL=${VITE_RUST_SERVICE_URL}
 
 # Build Vite application
 RUN npm run build

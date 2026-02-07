@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import declarative_base
 import os
 from typing import AsyncGenerator
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create base class for models
 Base = declarative_base()
@@ -51,9 +54,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db():
     """
-    Initialize database - create all tables.
-    Call this on application startup.
+    Initialize database.
+    Note: Schema creation is handled by Alembic migrations via the entrypoint script.
+    This function is kept for potential future initialization tasks (e.g., data seeding).
     """
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Schema creation is handled by Alembic migrations, not here
+    # This function can be used for other initialization tasks if needed
+    logger.info("Database initialization complete (schema managed by Alembic migrations)")
 

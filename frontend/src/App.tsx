@@ -4,8 +4,9 @@ import RightSidebar, { ChatThread } from '../components/RightSidebar'
 import ChatInterface from '../components/ChatInterface'
 import DatabaseBrowser from '../components/DatabaseBrowser'
 import Settings from '../components/Settings'
+import FractalViewer from '../components/FractalViewer'
 
-type MenuKey = 'chat' | 'settings' | 'database'
+type MenuKey = 'chat' | 'settings' | 'database' | 'fractal'
 
 function App() {
   const [activeMenu, setActiveMenu] = useState<MenuKey>('chat')
@@ -319,6 +320,9 @@ function App() {
           onRefreshUser={fetchUserInfo}
         />
       )
+    } else if (activeMenu === 'fractal') {
+      const rustServiceUrl = import.meta.env.VITE_RUST_SERVICE_URL || 'http://localhost:8001'
+      return <FractalViewer rustServiceUrl={rustServiceUrl} />
     }
     return null
   }

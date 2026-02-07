@@ -1,4 +1,4 @@
-.PHONY: build destroy frontend logs backend up down restart ollama-pull-models ollama-list test-backend clean-containers dev dev-up dev-down
+.PHONY: build destroy frontend core-api rust-service logs up down restart ollama-pull-models ollama-list test clean-containers dev dev-up dev-down migrate
 
 # Build all images
 build:
@@ -24,18 +24,32 @@ frontend:
 	docker compose build frontend
 	docker compose up -d
 
-# Rebuild backend and start all services
-backend:
-	docker compose build backend
+# Rebuild core-api and start all services
+core-api:
+	docker compose build core-api
 	docker compose up -d
+
+# Alias for backward compatibility
+backend: core-api
+
+# Rebuild rust-service and start all services
+rust-service:
+	docker compose build rust-service
+	docker compose up -d rust-service
 
 # View logs for all services (follow mode)
 logs:
 	docker compose logs -f
 
 # View logs for specific service (follow mode)
-logs-backend:
-	docker compose logs -f backend
+logs-core-api:
+	docker compose logs -f core-api
+
+# Alias for backward compatibility
+logs-backend: logs-core-api
+
+logs-rust-service:
+	docker compose logs -f rust-service
 
 logs-frontend:
 	docker compose logs -f frontend
@@ -69,14 +83,14 @@ ollama-pull-fast:
 ollama-stats:
 	docker stats sigmachain-ollama --no-stream
 
-# Test backend services
+# Test core-api services
 test:
-	docker exec sigmachain-backend python scripts/test_backend.py
+	docker exec sigmachain-core-api python scripts/test_backend.py
 
 # Run database migration to add user fields
 migrate:
 	@echo "Running database migration to add user fields..."
-	docker exec sigmachain-backend python scripts/apply_user_fields_migration.py
+	docker exec sigmachain-core-api python scripts/apply_user_fields_migration.py
 	@echo "Migration completed!"
 
 # Remove all Docker containers (running and stopped)
@@ -105,3 +119,25 @@ dev-down:
 # View development frontend logs
 logs-frontend-dev:
 	docker compose logs -f frontend-dev
+
+# Build everything from scratch (useful after major changes)
+build-all:
+	docker compose build --no-cache
+
+# Start all services including rust-service
+up-all:
+	docker compose up -d
+
+# Check status of all services
+status:
+	docker compose ps
+
+# Restart a specific service
+restart-core-api:
+	docker compose restart core-api
+
+restart-rust-service:
+	docker compose restart rust-service
+
+restart-frontend:
+	docker compose restart frontend
