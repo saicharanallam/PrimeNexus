@@ -1,4 +1,4 @@
-use super::traits::{Fractal, FractalParams};
+use super::traits::{default_validate_params, Fractal, FractalParams};
 use crate::rendering::colors::{iterations_to_color, ColorScheme};
 use crate::utils::validation::validate_recursion_depth;
 use image::{ImageBuffer, Rgb, RgbImage};
@@ -59,8 +59,7 @@ impl Fractal for SierpinskiTriangle {
     }
 
     fn validate_params(&self, params: &FractalParams) -> Result<(), String> {
-        // Call default validation
-        Fractal::validate_params(self, params)?;
+        default_validate_params(params)?;
 
         // Validate recursion depth
         if let Some(depth) = params.recursion_depth {

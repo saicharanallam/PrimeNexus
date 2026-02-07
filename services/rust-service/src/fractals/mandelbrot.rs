@@ -30,10 +30,11 @@ impl Fractal for MandelbrotSet {
         let min_y = center_y - scale;
         let max_y = center_y + scale;
 
-        // Pre-calculate all pixel data in parallel
+        // Pre-calculate all pixel data in parallel (clone scheme per row for parallel capture)
         let pixels: Vec<[u8; 3]> = (0..height)
             .into_par_iter()
             .flat_map(|y| {
+                let scheme = scheme.clone();
                 (0..width)
                     .map(move |x| {
                         // Map pixel coordinates to complex plane

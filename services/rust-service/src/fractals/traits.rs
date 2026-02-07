@@ -36,6 +36,26 @@ impl Default for FractalParams {
     }
 }
 
+/// Common parameter validation shared by all fractal types.
+/// Call this from fractal-specific validate_params before doing type-specific checks.
+pub fn default_validate_params(params: &FractalParams) -> Result<(), String> {
+    if params.width == 0 || params.height == 0 || params.width > 4096 || params.height > 4096 {
+        return Err(
+            "Invalid dimensions. Width and height must be between 1 and 4096.".to_string(),
+        );
+    }
+
+    if params.zoom <= 0.0 || params.zoom > 1e10 {
+        return Err("Invalid zoom. Must be between 0 and 1e10.".to_string());
+    }
+
+    if params.max_iterations == 0 || params.max_iterations > 10000 {
+        return Err("Invalid max_iterations. Must be between 1 and 10000.".to_string());
+    }
+
+    Ok(())
+}
+
 pub trait Fractal: Send + Sync {
     /// Generate the fractal image with the given parameters
     fn generate(&self, params: FractalParams) -> Result<RgbImage, String>;
@@ -45,21 +65,6 @@ pub trait Fractal: Send + Sync {
 
     /// Validate parameters for this fractal type
     fn validate_params(&self, params: &FractalParams) -> Result<(), String> {
-        // Common validations
-        if params.width == 0 || params.height == 0 || params.width > 4096 || params.height > 4096 {
-            return Err(
-                "Invalid dimensions. Width and height must be between 1 and 4096.".to_string(),
-            );
-        }
-
-        if params.zoom <= 0.0 || params.zoom > 1e10 {
-            return Err("Invalid zoom. Must be between 0 and 1e10.".to_string());
-        }
-
-        if params.max_iterations == 0 || params.max_iterations > 10000 {
-            return Err("Invalid max_iterations. Must be between 1 and 10000.".to_string());
-        }
-
-        Ok(())
+        default_validate_params(params)
     }
 }

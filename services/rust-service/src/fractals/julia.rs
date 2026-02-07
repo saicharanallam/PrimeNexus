@@ -1,4 +1,4 @@
-use super::traits::{Fractal, FractalParams};
+use super::traits::{default_validate_params, Fractal, FractalParams};
 use crate::rendering::colors::{iterations_to_color, ColorScheme};
 use crate::utils::validation::validate_julia_params;
 use image::{ImageBuffer, Rgb, RgbImage};
@@ -39,10 +39,11 @@ impl Fractal for JuliaSet {
         let min_y = center_y - scale;
         let max_y = center_y + scale;
 
-        // Pre-calculate all pixel data in parallel
+        // Pre-calculate all pixel data in parallel (clone scheme per row for parallel capture)
         let pixels: Vec<[u8; 3]> = (0..height)
             .into_par_iter()
             .flat_map(|y| {
+                let scheme = scheme.clone();
                 (0..width)
                     .map(move |x| {
                         // Map pixel coordinates to complex plane
@@ -73,8 +74,7 @@ impl Fractal for JuliaSet {
     }
 
     fn validate_params(&self, params: &FractalParams) -> Result<(), String> {
-        // Call default validation
-        Fractal::validate_params(self, params)?;
+        default_validate_params(params)?;
 
         // Validate Julia-specific parameters
         if let (Some(c_real), Some(c_imag)) = (params.julia_c_real, params.julia_c_imag) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { CheckCircleIcon, XCircleIcon, SparklesIcon } from '@heroicons/react/24/outline'
-import { MandelbrotParams, ColorScheme } from '../../src/types/fractal'
+import { ColorScheme } from '../../src/types/fractal'
 import FractalControls from './FractalControls'
 import ColorSchemeSelector from './ColorSchemeSelector'
 import PresetSelector from './PresetSelector'
@@ -8,7 +8,6 @@ import ExportControls from './ExportControls'
 import InteractiveFractalImage from './InteractiveFractalImage'
 import { useExport } from '../../src/hooks/useExport'
 import { useInteractiveFractal } from '../../src/hooks/useInteractiveFractal'
-import { getPresetsForType } from '../../src/utils/fractalPresets'
 
 interface MandelbrotViewerProps {
   rustServiceUrl?: string

@@ -14,7 +14,7 @@ interface HealthStatus {
 
 export default function FractalViewer({ rustServiceUrl }: FractalViewerProps) {
   const { registerSidebar, unregisterSidebar } = useSidebar()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, _setSidebarCollapsed] = useState(false)
   const rustUrl = rustServiceUrl || import.meta.env.VITE_RUST_SERVICE_URL || 'http://localhost:8001'
 
   const [healthStatus, setHealthStatus] = useState<HealthStatus>({

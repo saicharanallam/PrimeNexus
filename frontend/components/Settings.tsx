@@ -4,24 +4,10 @@ import { useUser } from '../src/hooks/useUser'
 import { useSidebar } from '../src/hooks/useSidebar'
 import SettingsSidebar from './sidebars/SettingsSidebar'
 
-interface UserData {
-  id: string
-  username: string
-  email: string | null
-  display_name: string | null
-  bio: string | null
-  avatar_url: string | null
-  phone: string | null
-  timezone: string | null
-  preferences: Record<string, any> | null
-  created_at: string
-  updated_at: string
-}
-
 export default function Settings() {
   const { userId, userData, handleUserUpdate, fetchUserInfo } = useUser()
   const { registerSidebar, unregisterSidebar } = useSidebar()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, _setSidebarCollapsed] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)

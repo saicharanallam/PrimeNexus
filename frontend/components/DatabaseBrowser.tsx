@@ -23,7 +23,7 @@ interface DatabaseBrowserProps {
 
 export default function DatabaseBrowser({ apiUrl = 'http://localhost:8000' }: DatabaseBrowserProps) {
   const { registerSidebar, unregisterSidebar } = useSidebar()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, _setSidebarCollapsed] = useState(false)
   const [tables, setTables] = useState<Table[]>([])
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [tableData, setTableData] = useState<TableData | null>(null)

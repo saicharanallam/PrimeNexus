@@ -23,8 +23,8 @@ export default function InteractiveFractalImage({
   onZoomOut,
   onPan,
   onReset,
-  width,
-  height,
+  width: _width,
+  height: _height,
 }: InteractiveFractalImageProps) {
   const imageRef = useRef<HTMLImageElement>(null)
   const [isDragging, setIsDragging] = useState(false)

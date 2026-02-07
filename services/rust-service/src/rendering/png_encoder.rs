@@ -7,7 +7,7 @@ use image::RgbImage;
 pub fn encode_png(img: RgbImage) -> Result<Vec<u8>, String> {
     let mut png_bytes: Vec<u8> = Vec::new();
     let (width, height) = img.dimensions();
-    let mut encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
+    let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
     let raw_pixels = img.into_raw();
 
     encoder

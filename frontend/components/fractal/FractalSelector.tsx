@@ -13,7 +13,7 @@ interface FractalSelectorProps {
 
 export default function FractalSelector({ rustServiceUrl }: FractalSelectorProps) {
   const [fractalType, setFractalType] = useState<FractalType>('mandelbrot')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, _setSidebarCollapsed] = useState(false)
   const { registerSidebar, unregisterSidebar } = useSidebar()
 
   // Register sidebar

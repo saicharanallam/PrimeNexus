@@ -17,7 +17,7 @@ export default function ChatInterface() {
   const { userId, apiUrl } = useUser()
   const { activeChatId: threadId, loadChatThreads, setActiveChatId } = useChat()
   const { registerSidebar, unregisterSidebar } = useSidebar()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, _setSidebarCollapsed] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
