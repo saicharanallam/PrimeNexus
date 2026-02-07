@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect, KeyboardEvent, ChangeEvent, MouseEvent, useCallback } from 'react'
 import { PaperAirplaneIcon } from '@heroicons/react/24/outline'
+import { useUser } from '../src/hooks/useUser'
+import { useChat } from '../src/hooks/useChat'
+import { useSidebar } from '../src/hooks/useSidebar'
+import ChatSidebar from './sidebars/ChatSidebar'
 
 interface Message {
   id: string
@@ -9,15 +13,11 @@ interface Message {
   streaming?: boolean
 }
 
-interface ChatInterfaceProps {
-  threadId: string | null
-  userId: string
-  apiUrl?: string
-  onThreadCreated?: (threadId: string) => void
-  onMessageSent?: () => void
-}
-
-export default function ChatInterface({ threadId, userId, apiUrl = 'http://localhost:8000', onThreadCreated, onMessageSent }: ChatInterfaceProps) {
+export default function ChatInterface() {
+  const { userId, apiUrl } = useUser()
+  const { activeChatId: threadId, loadChatThreads, setActiveChatId } = useChat()
+  const { registerSidebar, unregisterSidebar } = useSidebar()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -26,6 +26,12 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const threadJustCreatedRef = useRef<string | null>(null)
+
+  // Register sidebar
+  useEffect(() => {
+    registerSidebar('chat', <ChatSidebar collapsed={sidebarCollapsed} />)
+    return () => unregisterSidebar('chat')
+  }, [registerSidebar, unregisterSidebar, sidebarCollapsed])
 
   // Auto-resize textarea
   const adjustTextareaHeight = useCallback(() => {
@@ -44,6 +50,7 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
   // Load messages when thread changes
   const loadMessages = useCallback(async () => {
     if (!threadId || !userId) return
+    if (!apiUrl) return
 
     try {
       setError(null)
@@ -111,9 +118,8 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
       if (response.ok) {
         // Mark this thread as just created to prevent loading messages immediately
         threadJustCreatedRef.current = newThreadId
-        if (onThreadCreated) {
-          onThreadCreated(newThreadId)
-        }
+        setActiveChatId(newThreadId)
+        loadChatThreads()
         return newThreadId
       } else {
         const errorData = await response.json().catch(() => ({}))
@@ -234,10 +240,8 @@ export default function ChatInterface({ threadId, userId, apiUrl = 'http://local
                 // Clear the threadJustCreated flag after streaming completes
                 // This allows messages to be reloaded from DB if needed
                 threadJustCreatedRef.current = null
-                // Notify parent that message was sent (to reload thread list)
-                if (onMessageSent) {
-                  onMessageSent()
-                }
+                // Reload chat threads to update message counts
+                loadChatThreads()
               }
               if (data.error) {
                 throw new Error(data.error)

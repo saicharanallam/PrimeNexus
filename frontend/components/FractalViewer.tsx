@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CheckCircleIcon, XCircleIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import { useSidebar } from '../src/hooks/useSidebar'
+import FractalSidebar from './sidebars/FractalSidebar'
 
 interface FractalViewerProps {
   rustServiceUrl?: string
@@ -11,8 +13,10 @@ interface HealthStatus {
 }
 
 export default function FractalViewer({ rustServiceUrl }: FractalViewerProps) {
+  const { registerSidebar, unregisterSidebar } = useSidebar()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const rustUrl = rustServiceUrl || import.meta.env.VITE_RUST_SERVICE_URL || 'http://localhost:8001'
-  
+
   const [healthStatus, setHealthStatus] = useState<HealthStatus>({
     status: 'checking',
     message: 'Checking service status...',
@@ -29,6 +33,12 @@ export default function FractalViewer({ rustServiceUrl }: FractalViewerProps) {
   const [centerX, setCenterX] = useState(0.0)
   const [centerY, setCenterY] = useState(0.0)
   const [maxIterations, setMaxIterations] = useState(100)
+
+  // Register sidebar
+  useEffect(() => {
+    registerSidebar('fractal', <FractalSidebar collapsed={sidebarCollapsed} />)
+    return () => unregisterSidebar('fractal')
+  }, [registerSidebar, unregisterSidebar, sidebarCollapsed])
 
   // Check health on mount
   useEffect(() => {

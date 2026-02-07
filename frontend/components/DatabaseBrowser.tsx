@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TableCellsIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { useSidebar } from '../src/hooks/useSidebar'
+import DatabaseSidebar from './sidebars/DatabaseSidebar'
 
 interface Table {
   name: string
@@ -20,6 +22,8 @@ interface DatabaseBrowserProps {
 }
 
 export default function DatabaseBrowser({ apiUrl = 'http://localhost:8000' }: DatabaseBrowserProps) {
+  const { registerSidebar, unregisterSidebar } = useSidebar()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [tables, setTables] = useState<Table[]>([])
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [tableData, setTableData] = useState<TableData | null>(null)
@@ -27,6 +31,12 @@ export default function DatabaseBrowser({ apiUrl = 'http://localhost:8000' }: Da
   const [error, setError] = useState<string | null>(null)
   const [offset, setOffset] = useState(0)
   const limit = 50
+
+  // Register sidebar
+  useEffect(() => {
+    registerSidebar('database', <DatabaseSidebar collapsed={sidebarCollapsed} />)
+    return () => unregisterSidebar('database')
+  }, [registerSidebar, unregisterSidebar, sidebarCollapsed])
 
   useEffect(() => {
     loadTables()

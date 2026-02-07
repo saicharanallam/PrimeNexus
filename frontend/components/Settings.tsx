@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 import { UserIcon, PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { useUser } from '../src/hooks/useUser'
+import { useSidebar } from '../src/hooks/useSidebar'
+import SettingsSidebar from './sidebars/SettingsSidebar'
 
 interface UserData {
   id: string
@@ -15,14 +18,10 @@ interface UserData {
   updated_at: string
 }
 
-interface SettingsProps {
-  userId: string | null
-  userData: UserData | null
-  onUserUpdate: (updates: any) => Promise<{ success: boolean; error?: string }>
-  onRefreshUser: () => void
-}
-
-export default function Settings({ userId, userData, onUserUpdate, onRefreshUser }: SettingsProps) {
+export default function Settings() {
+  const { userId, userData, handleUserUpdate, fetchUserInfo } = useUser()
+  const { registerSidebar, unregisterSidebar } = useSidebar()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -36,6 +35,12 @@ export default function Settings({ userId, userData, onUserUpdate, onRefreshUser
     phone: '',
     timezone: 'UTC',
   })
+
+  // Register sidebar
+  useEffect(() => {
+    registerSidebar('settings', <SettingsSidebar collapsed={sidebarCollapsed} />)
+    return () => unregisterSidebar('settings')
+  }, [registerSidebar, unregisterSidebar, sidebarCollapsed])
 
   useEffect(() => {
     if (userData) {
@@ -73,12 +78,12 @@ export default function Settings({ userId, userData, onUserUpdate, onRefreshUser
       return
     }
 
-    const result = await onUserUpdate(updates)
-    
+    const result = await handleUserUpdate(updates)
+
     if (result.success) {
       setSuccess('User details updated successfully')
       setIsEditing(false)
-      onRefreshUser()
+      fetchUserInfo()
       setTimeout(() => setSuccess(null), 3000)
     } else {
       setError(result.error || 'Failed to update user details')
